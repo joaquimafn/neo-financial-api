@@ -2,6 +2,7 @@ const request = require('supertest');
 const express = require('express');
 const router = require('../../src/routes/api');
 const characterController = require('../../src/controllers/characterController');
+const battleController = require('../../src/controllers/battleController');
 
 // Mock dos controladores
 jest.mock('../../src/controllers/characterController', () => {
@@ -19,6 +20,8 @@ jest.mock('../../src/controllers/characterController', () => {
 
     return mockController;
 });
+
+jest.mock('../../src/controllers/battleController');
 
 // Configura uma app Express para os testes
 const app = express();
@@ -50,11 +53,13 @@ describe('API Routes', () => {
         });
     });
 
-    describe('/api/characters/job-details', () => {
+    describe('/api/characters/job-details/:job', () => {
         test('should return job details', async () => {
-            await request(app).get('/api/characters/job-details');
+            await request(app).get('/api/characters/job-details/Warrior');
 
             expect(characterController.getJobDetails).toHaveBeenCalled();
+            const callArgs = characterController.getJobDetails.mock.calls[0];
+            expect(callArgs[0].params.job).toBe('Warrior');
         });
     });
 
@@ -148,6 +153,141 @@ describe('API Routes', () => {
 
             const callArgs = characterController.levelUpCharacter.mock.calls[0];
             expect(callArgs[0].params.id).toBe('999');
+        });
+    });
+
+    describe('Battle Routes', () => {
+        it('POST /api/battles should call startBattle controller method', async () => {
+            const mockReq = {
+                body: {
+                    character1Id: '1234',
+                    character2Id: '5678'
+                }
+            };
+
+            battleController.startBattle.mockImplementation((req, res) => {
+                res.status(201).json({
+                    status: 'success',
+                    data: {
+                        winner: { id: '1234', name: 'Winner', remainingHp: 50 },
+                        loser: { id: '5678', name: 'Loser' },
+                        rounds: 3,
+                        battleLog: ['Battle log']
+                    }
+                });
+            });
+
+            const response = await request(app)
+                .post('/api/battles')
+                .send(mockReq.body);
+
+            expect(response.status).toBe(201);
+            expect(battleController.startBattle).toHaveBeenCalled();
+            expect(response.body).toHaveProperty('status', 'success');
+            expect(response.body.data).toHaveProperty('winner');
+            expect(response.body.data).toHaveProperty('loser');
+        });
+
+        it('GET /api/battles should call getAllBattles controller method', async () => {
+            battleController.getAllBattles.mockImplementation((req, res) => {
+                res.status(200).json({
+                    status: 'success',
+                    results: 2,
+                    data: {
+                        battles: [
+                            { id: 1, winnerId: '1234', loserId: '5678' },
+                            { id: 2, winnerId: '5678', loserId: '1234' }
+                        ]
+                    }
+                });
+            });
+
+            const response = await request(app).get('/api/battles');
+
+            expect(response.status).toBe(200);
+            expect(battleController.getAllBattles).toHaveBeenCalled();
+            expect(response.body).toHaveProperty('status', 'success');
+            expect(response.body.data.battles).toHaveLength(2);
+        });
+
+        it('GET /api/battles/:id should call getBattleById controller method', async () => {
+            battleController.getBattleById.mockImplementation((req, res) => {
+                if (req.params.id === '1') {
+                    res.status(200).json({
+                        status: 'success',
+                        data: {
+                            battle: { id: 1, winnerId: '1234', loserId: '5678' }
+                        }
+                    });
+                } else {
+                    res.status(404).json({
+                        status: 'fail',
+                        message: `Battle with ID ${req.params.id} not found`
+                    });
+                }
+            });
+
+            const response = await request(app).get('/api/battles/1');
+
+            expect(response.status).toBe(200);
+            expect(battleController.getBattleById).toHaveBeenCalled();
+            expect(response.body).toHaveProperty('status', 'success');
+            expect(response.body.data.battle).toHaveProperty('id', 1);
+        });
+
+        it('GET /api/battles/:id should return 404 for non-existent battle', async () => {
+            battleController.getBattleById.mockImplementation((req, res) => {
+                res.status(404).json({
+                    status: 'fail',
+                    message: `Battle with ID ${req.params.id} not found`
+                });
+            });
+
+            const response = await request(app).get('/api/battles/999');
+
+            expect(response.status).toBe(404);
+            expect(battleController.getBattleById).toHaveBeenCalled();
+            expect(response.body).toHaveProperty('status', 'fail');
+            expect(response.body).toHaveProperty('message', 'Battle with ID 999 not found');
+        });
+    });
+
+    describe('Health Check Routes', () => {
+        it('GET /api/health should return API health status', async () => {
+            const response = await request(app).get('/api/health');
+
+            expect(response.status).toBe(200);
+            expect(response.body).toHaveProperty('status', 'success');
+            expect(response.body).toHaveProperty('message', 'API is running correctly');
+            expect(response.body).toHaveProperty('timestamp');
+        });
+
+        it('GET /api/battle/health should return battle system health status', async () => {
+            // Mock battles array for this test
+            battleController.battles = [];
+
+            const response = await request(app).get('/api/battle/health');
+
+            expect(response.status).toBe(200);
+            expect(response.body).toHaveProperty('status', 'success');
+            expect(response.body).toHaveProperty('message', 'Battle system is ready');
+            expect(response.body).toHaveProperty('battles', 0);
+            expect(response.body).toHaveProperty('timestamp');
+        });
+
+        it('GET /api/battle/health should display correct battle count', async () => {
+            // Mock battles array with some battles
+            battleController.battles = [
+                { id: 1 },
+                { id: 2 },
+                { id: 3 }
+            ];
+
+            const response = await request(app).get('/api/battle/health');
+
+            expect(response.status).toBe(200);
+            expect(response.body).toHaveProperty('status', 'success');
+            expect(response.body).toHaveProperty('battles', 3);
         });
     });
 }); 

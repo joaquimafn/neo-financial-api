@@ -163,6 +163,35 @@ describe('Character model', () => {
             expect(character.attackModifier).toBeDefined();
             expect(character.speedModifier).toBeDefined();
         });
+
+        test('should handle special case for Mage attack modifier with value close to 16.6', () => {
+            const character = new Character('TestChar', 'Mage');
+            // Adjust stats to get the mageAttackCalc close to 16.6
+            character.strength = 5;
+            character.dexterity = 6;
+            character.intelligence = 12;
+
+            // This should trigger the special case for Mage attack modifier
+            character.calculateModifiers();
+
+            // Check that attackModifier was set to 17 instead of 16.6
+            expect(character.attackModifier).toBe(17);
+        });
+
+        test('should handle non-standard job type with default calculation', () => {
+            const character = new Character('TestChar', 'Warrior');
+            character.job = 'CustomJob'; // Non-standard job
+            character.strength = 8;
+            character.dexterity = 8;
+            character.intelligence = 8;
+
+            character.calculateModifiers();
+
+            // Default calculation: (8*0.5 + 8*0.3 + 8*0.2) = 4 + 2.4 + 1.6 = 8
+            expect(character.attackModifier).toBe(8);
+            // Default calculation: (8*0.6 + 8*0.2 + 8*0.1) = 4.8 + 1.6 + 0.8 = 7.2
+            expect(character.speedModifier).toBe(7.2);
+        });
     });
 
     // Test changeJob method
@@ -275,6 +304,25 @@ describe('Character model', () => {
         });
     });
 
+    // Test save method
+    describe('save method', () => {
+        test('should resolve with the character instance', async () => {
+            const character = new Character('TestChar', 'Warrior');
+            character.id = '123';
+
+            // Add to global character array to simulate existing character
+            if (typeof global.characters === 'undefined') {
+                global.characters = [];
+            }
+            global.characters.push(character);
+
+            const result = await character.save();
+
+            // Save should return the character itself
+            expect(result).toBe(character);
+        });
+    });
+
     // Test static methods
     describe('static methods', () => {
         test('getAvailableJobs should return array of valid jobs', () => {
@@ -299,6 +347,56 @@ describe('Character model', () => {
             const jobDetails = Character.getJobDetails('Warrior');
             expect(jobDetails).toHaveLength(1);
             expect(jobDetails[0].name).toBe('Warrior');
+        });
+
+        describe('findById method', () => {
+            beforeEach(() => {
+                // Reset Character.characters array before each test
+                Character.characters = [];
+            });
+
+            test('should return null if id is not provided', async () => {
+                const result = await Character.findById();
+                expect(result).toBeNull();
+            });
+
+            test('should return null if character is not found', async () => {
+                Character.characters = [
+                    { id: '1', name: 'Character1' },
+                    { id: '2', name: 'Character2' }
+                ];
+
+                const result = await Character.findById('999');
+                expect(result).toBeNull();
+            });
+
+            test('should find character by id', async () => {
+                const char1 = { id: '1', name: 'Character1' };
+                const char2 = { id: '2', name: 'Character2' };
+
+                Character.characters = [char1, char2];
+
+                const result = await Character.findById('2');
+                expect(result).toBe(char2);
+            });
+
+            test('should find character by _id', async () => {
+                const char1 = { _id: '1', name: 'Character1' };
+                const char2 = { _id: '2', name: 'Character2' };
+
+                Character.characters = [char1, char2];
+
+                const result = await Character.findById('1');
+                expect(result).toBe(char1);
+            });
+
+            test('should handle string conversion of ids', async () => {
+                const char1 = { id: 1, name: 'Character1' }; // Numeric id
+                Character.characters = [char1];
+
+                const result = await Character.findById('1'); // String id
+                expect(result).toBe(char1);
+            });
         });
     });
 }); 

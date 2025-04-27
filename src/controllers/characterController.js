@@ -1,7 +1,8 @@
 const Character = require('../models/Character');
 
-// In-memory characters data (replace with database in production)
-let characters = [];
+
+
+global.characters = [];
 
 /**
  * @swagger
@@ -71,9 +72,9 @@ exports.getAvailableJobs = (req, res) => {
 exports.getAllCharacters = (req, res) => {
     res.status(200).json({
         status: 'success',
-        results: characters.length,
+        results: global.characters.length,
         data: {
-            characters
+            characters: global.characters
         }
     });
 };
@@ -116,7 +117,7 @@ exports.getAllCharacters = (req, res) => {
  */
 exports.getCharacterById = (req, res) => {
     const id = parseInt(req.params.id);
-    const character = characters.find(c => c.id === id);
+    const character = global.characters.find(c => c.id === id);
 
     if (!character) {
         return res.status(404).json({
@@ -190,15 +191,15 @@ exports.createCharacter = (req, res) => {
             });
         }
 
-        // Create a new character instance (validation happens in the model)
+
         const character = new Character(name, job);
 
-        // Add an ID for the character
-        const newId = characters.length > 0 ? Math.max(...characters.map(c => c.id)) + 1 : 1;
+
+        const newId = global.characters.length > 0 ? Math.max(...global.characters.map(c => c.id)) + 1 : 1;
         character.id = newId;
 
-        // Store the character
-        characters.push(character);
+
+        global.characters.push(character);
 
         res.status(201).json({
             status: 'success',
@@ -271,7 +272,7 @@ exports.createCharacter = (req, res) => {
 exports.updateCharacter = (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        const characterIndex = characters.findIndex(c => c.id === id);
+        const characterIndex = global.characters.findIndex(c => c.id === id);
 
         if (characterIndex === -1) {
             return res.status(404).json({
@@ -280,9 +281,9 @@ exports.updateCharacter = (req, res) => {
             });
         }
 
-        const character = characters[characterIndex];
+        const character = global.characters[characterIndex];
 
-        // Handle job change if provided
+
         if (req.body.job && req.body.job !== character.job) {
             character.changeJob(req.body.job);
         }
@@ -340,7 +341,7 @@ exports.updateCharacter = (req, res) => {
 exports.levelUpCharacter = (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        const character = characters.find(c => c.id === id);
+        const character = global.characters.find(c => c.id === id);
 
         if (!character) {
             return res.status(404).json({
@@ -390,7 +391,7 @@ exports.levelUpCharacter = (req, res) => {
  */
 exports.deleteCharacter = (req, res) => {
     const id = parseInt(req.params.id);
-    const characterIndex = characters.findIndex(c => c.id === id);
+    const characterIndex = global.characters.findIndex(c => c.id === id);
 
     if (characterIndex === -1) {
         return res.status(404).json({
@@ -399,7 +400,7 @@ exports.deleteCharacter = (req, res) => {
         });
     }
 
-    characters.splice(characterIndex, 1);
+    global.characters.splice(characterIndex, 1);
 
     res.status(204).json({
         status: 'success',
@@ -413,6 +414,13 @@ exports.deleteCharacter = (req, res) => {
  *   get:
  *     summary: Get detailed information about character jobs
  *     tags: [Characters]
+ *     parameters:
+ *       - in: path
+ *         name: job
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Character job
  *     responses:
  *       200:
  *         description: Detailed information about all available character jobs

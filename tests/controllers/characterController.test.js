@@ -1,7 +1,7 @@
 const characterController = require('../../src/controllers/characterController');
 const Character = require('../../src/models/Character');
 
-// Mock response object
+
 const mockResponse = () => {
     const res = {};
     res.status = jest.fn().mockReturnValue(res);
@@ -9,10 +9,10 @@ const mockResponse = () => {
     return res;
 };
 
-// Mock o Character para testes
+
 jest.mock('../../src/models/Character', () => {
     return jest.fn().mockImplementation((name, job) => {
-        // Simular validações
+
         if (name === 'Inv@lid') {
             throw new Error('Invalid name: must be 4-15 characters long and contain only letters or underscores');
         }
@@ -45,7 +45,7 @@ jest.mock('../../src/models/Character', () => {
     });
 });
 
-// Também definimos os métodos estáticos
+
 Character.getAvailableJobs = jest.fn().mockReturnValue(['Warrior', 'Thief', 'Mage']);
 Character.getJobDetails = jest.fn().mockImplementation(() => {
     return [
@@ -80,11 +80,11 @@ Character.getJobDetails = jest.fn().mockImplementation(() => {
 });
 
 describe('Character Controller', () => {
-    // Antes de cada teste, limpar os mocks
+
     beforeEach(() => {
         jest.clearAllMocks();
 
-        // Limpar o array de personagens do controller
+
         characterController.characters = [];
     });
 
@@ -201,7 +201,7 @@ describe('Character Controller', () => {
 
     describe('getAllCharacters', () => {
         test('should return empty array when no characters exist', () => {
-            // Mock o método para este teste
+
             const originalGetAllCharacters = characterController.getAllCharacters;
             characterController.getAllCharacters = jest.fn((req, res) => {
                 res.status(200).json({
@@ -228,12 +228,12 @@ describe('Character Controller', () => {
             expect(Array.isArray(responseData.data.characters)).toBe(true);
             expect(responseData.data.characters).toHaveLength(0);
 
-            // Restaurar o método original
+
             characterController.getAllCharacters = originalGetAllCharacters;
         });
 
         test('should return array of characters when they exist', () => {
-            // Mock o método para este teste
+
             const originalGetAllCharacters = characterController.getAllCharacters;
             characterController.getAllCharacters = jest.fn((req, res) => {
                 const characters = [
@@ -265,14 +265,14 @@ describe('Character Controller', () => {
             expect(Array.isArray(responseData.data.characters)).toBe(true);
             expect(responseData.data.characters).toHaveLength(2);
 
-            // Restaurar o método original
+
             characterController.getAllCharacters = originalGetAllCharacters;
         });
     });
 
     describe('getCharacterById', () => {
         test('should return a character when it exists', () => {
-            // Mock o método para este teste
+
             const originalGetCharacterById = characterController.getCharacterById;
             characterController.getCharacterById = jest.fn((req, res) => {
                 const id = parseInt(req.params.id);
@@ -311,7 +311,7 @@ describe('Character Controller', () => {
             expect(responseData.data.character.name).toBe('TestChar');
             expect(responseData.data.character.job).toBe('Warrior');
 
-            // Restaurar o método original
+
             characterController.getCharacterById = originalGetCharacterById;
         });
 
@@ -334,7 +334,7 @@ describe('Character Controller', () => {
 
     describe('updateCharacter', () => {
         test('should update character job successfully', () => {
-            // Adicionar um personagem para este teste
+
             const char = {
                 id: 1,
                 name: 'TestChar',
@@ -379,7 +379,7 @@ describe('Character Controller', () => {
         });
 
         test('should return 400 when job is invalid', () => {
-            // Criar um personagem que lança erro para jobs inválidos
+
             const char = {
                 id: 1,
                 name: 'TestChar',
@@ -411,7 +411,7 @@ describe('Character Controller', () => {
         });
 
         test('should not change anything if same job is provided', () => {
-            // Adicionar um personagem para este teste
+
             const char = {
                 id: 1,
                 name: 'TestChar',
@@ -436,10 +436,10 @@ describe('Character Controller', () => {
 
     describe('levelUpCharacter', () => {
         test('should level up a character successfully', () => {
-            // Create a mock levelUp function
+
             const mockLevelUp = jest.fn();
 
-            // Create character object with the mock function
+
             const char = {
                 id: 1,
                 name: 'TestChar',
@@ -448,13 +448,13 @@ describe('Character Controller', () => {
                 levelUp: mockLevelUp
             };
 
-            // Override the controller's characters array directly
+
             characterController.characters = [char];
 
-            // Save the original implementation to restore later
+
             const originalLevelUpCharacter = characterController.levelUpCharacter;
 
-            // Create a mock implementation that directly uses our mock character
+
             characterController.levelUpCharacter = jest.fn((req, res) => {
                 const id = parseInt(req.params.id);
                 const character = characterController.characters.find(c => c.id === id);
@@ -482,10 +482,10 @@ describe('Character Controller', () => {
             };
             const res = mockResponse();
 
-            // Execute the function we're testing
+
             characterController.levelUpCharacter(req, res);
 
-            // Assertions
+
             expect(res.status).toHaveBeenCalledWith(200);
             expect(res.json).toHaveBeenCalled();
             expect(mockLevelUp).toHaveBeenCalled();
@@ -495,21 +495,21 @@ describe('Character Controller', () => {
             expect(responseData.status).toBe('success');
             expect(responseData.data.character).toBe(char);
 
-            // Restore the original implementation
+
             characterController.levelUpCharacter = originalLevelUpCharacter;
         });
 
         test('should return 404 when character does not exist', () => {
-            // Override the controller's characters array with a character that has a different ID
+
             characterController.characters = [{
                 id: 2,
                 name: 'OtherChar'
             }];
 
-            // Save the original implementation to restore later
+
             const originalLevelUpCharacter = characterController.levelUpCharacter;
 
-            // Create a mock implementation that checks ID and returns 404 if not found
+
             characterController.levelUpCharacter = jest.fn((req, res) => {
                 const id = parseInt(req.params.id);
                 const character = characterController.characters.find(c => c.id === id);
@@ -536,27 +536,27 @@ describe('Character Controller', () => {
             };
             const res = mockResponse();
 
-            // Execute the function being tested
+
             characterController.levelUpCharacter(req, res);
 
-            // Assertions
+
             expect(res.status).toHaveBeenCalledWith(404);
             expect(res.json).toHaveBeenCalledWith({
                 status: 'fail',
                 message: 'Character with ID 1 not found'
             });
 
-            // Restore the original implementation
+
             characterController.levelUpCharacter = originalLevelUpCharacter;
         });
     });
 
     describe('deleteCharacter', () => {
         test('should delete a character successfully', () => {
-            // Mock o método para este teste
+
             const originalDeleteCharacter = characterController.deleteCharacter;
             characterController.deleteCharacter = jest.fn((req, res) => {
-                // Simular que ao chamar o método, o array de personagens é alterado
+
                 characterController.characters = [{ id: 2, name: 'TestChar2', job: 'Mage' }];
 
                 res.status(204).json({
@@ -566,7 +566,7 @@ describe('Character Controller', () => {
                 return res;
             });
 
-            // Configurar characters inicialmente com 2 personagens
+
             characterController.characters = [
                 { id: 1, name: 'TestChar1', job: 'Warrior' },
                 { id: 2, name: 'TestChar2', job: 'Mage' }
@@ -582,11 +582,11 @@ describe('Character Controller', () => {
             expect(res.status).toHaveBeenCalledWith(204);
             expect(res.json).toHaveBeenCalled();
 
-            // Verificar que após a execução do método, o array tem apenas 1 personagem
+
             expect(characterController.characters.length).toBe(1);
             expect(characterController.characters[0].id).toBe(2);
 
-            // Restaurar o método original
+
             characterController.deleteCharacter = originalDeleteCharacter;
         });
 

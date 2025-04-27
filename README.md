@@ -7,6 +7,7 @@ A REST API built with Node.js and Express for managing RPG game characters.
 - Character management for RPG games (CRUD operations)
 - Character level-up mechanics
 - Character job change system
+- Battle system between characters
 - Dynamic attribute calculation based on character job
 - RESTful architecture
 - JSON responses
@@ -87,11 +88,9 @@ During development, I encountered several technical challenges:
 
 2. **Dynamic Attribute Calculation**: Each character class has different formulas for calculating attack and speed modifiers based on base attributes.
 
-3. **Testing Complexity**: Resolved controller testing issues where mocks weren't functioning correctly. The solution involved:
-   - Restructuring mocks to improve test isolation
-   - Implementing temporary substitutions of original controller functions
-   - Ensuring proper restoration after each test
-   - Fixing verification of mock function calls
+3. **Battle System Implementation**: Created a battle system that dynamically determines turn order based on character speed and calculates damage based on character attack modifiers.
+
+4. **Testing Complexity**: Resolved controller testing issues by implementing comprehensive mocks and test scenarios.
 
 All features were implemented following good programming practices, with high test coverage (>95%) and proper documentation.
 
@@ -105,14 +104,20 @@ All data is stored in memory. No database is used for this application. Data wil
 - `GET /api/health` - Check API health status
 
 ### RPG Characters
-- `GET /api/characters/jobs` - Get available character jobs
-- `GET /api/characters/job-details` - Get detailed information about character jobs
+- `GET /api/jobs` - Get available character jobs
+- `GET /api/jobs/:job` - Get detailed information about a specific job
 - `GET /api/characters` - Get all characters
 - `GET /api/characters/:id` - Get a specific character
 - `POST /api/characters` - Create a new character
 - `PUT /api/characters/:id` - Update a character (change job)
-- `POST /api/characters/:id/level-up` - Level up a character
+- `POST /api/characters/:id/levelup` - Level up a character
 - `DELETE /api/characters/:id` - Delete a character
+
+### Battles
+- `POST /api/battles` - Start a battle between two characters
+- `GET /api/battles` - Get all battles
+- `GET /api/battles/:id` - Get a specific battle
+- `GET /api/battle/health` - Check battle system health status
 
 ## RPG Character System
 
@@ -154,6 +159,104 @@ Each job has different base attributes:
 The character system supports:
 - Character leveling (increases attributes based on job)
 - Job changes (recalculates modifiers based on new job)
+
+### Battle System
+The battle system provides a way for characters to engage in combat:
+
+- Battles are turn-based and continue until one character reaches 0 HP
+- Each round begins by determining which character attacks first based on speed (initiative)
+- Initiative is determined randomly using the character's speed modifier
+- Damage is calculated as a random value between 0 and the attacker's attack modifier
+- Defense reduces incoming damage (defense / 3)
+- Minimum damage is always 1, regardless of defense
+- Detailed battle logs record each action and the outcome
+- The winner keeps their remaining HP after the battle
+- In case of a 100-round draw, the character with the most remaining HP is declared the winner
+
+### Battle API Endpoints
+
+#### Start a Battle
+Initiates a battle between two characters and returns the battle results.
+
+**Endpoint:** `POST /api/battles`
+
+**Request Body:**
+```json
+{
+  "character1Id": "characterId1",
+  "character2Id": "characterId2"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "winner": {
+    "id": "characterId1",
+    "name": "Character1Name",
+    "job": "Warrior",
+    "remainingHp": 65
+  },
+  "loser": {
+    "id": "characterId2",
+    "name": "Character2Name",
+    "job": "Mage"
+  },
+  "rounds": 5,
+  "battleLog": [
+    "Battle begins: Character1Name (Warrior, HP: 100) vs Character2Name (Mage, HP: 70)",
+    "Round 1:",
+    "Character1Name wins initiative with 7.5 vs 6.2",
+    "Character1Name attacks for 15 damage (12 after defense). Character2Name HP: 58",
+    "Character2Name attacks for 12 damage (7 after defense). Character1Name HP: 93",
+    // More battle log entries...
+    "Battle ends! Character1Name wins with 65 HP remaining!"
+  ]
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: If character IDs are missing or the same character is used twice
+- `404 Not Found`: If one or both characters cannot be found
+- `500 Internal Server Error`: For server-side errors
+
+#### Get All Battles
+Retrieves a list of all battles that have occurred.
+
+**Endpoint:** `GET /api/battles`
+
+**Success Response (200):**
+```json
+{
+  "status": "success",
+  "results": 2,
+  "data": {
+    "battles": [
+      // Battle objects
+    ]
+  }
+}
+```
+
+#### Get Battle by ID
+Retrieves details of a specific battle by its ID.
+
+**Endpoint:** `GET /api/battles/:id`
+
+**Success Response (200):**
+```json
+{
+  "status": "success",
+  "data": {
+    "battle": {
+      // Battle details
+    }
+  }
+}
+```
+
+**Error Response:**
+- `404 Not Found`: If the battle with the specified ID cannot be found
 
 ## Technologies Used
 
@@ -227,15 +330,16 @@ Content-Type: application/json
 }
 ```
 
-### Example: Change Character Job
+### Example: Start a Battle
 
 **Request:**
 ```http
-PUT /api/characters/1
+POST /api/battles
 Content-Type: application/json
 
 {
-  "job": "Mage"
+  "character1Id": 1,
+  "character2Id": 2
 }
 ```
 
@@ -244,18 +348,29 @@ Content-Type: application/json
 {
   "status": "success",
   "data": {
-    "character": {
+    "battleId": 1,
+    "winner": {
       "id": 1,
       "name": "Hero_Knight",
+      "job": "Warrior",
+      "currentHP": 15
+    },
+    "loser": {
+      "id": 2,
+      "name": "Spell_Master",
       "job": "Mage",
-      "level": 2,
-      "health": 14.4,
-      "strength": 12,
-      "dexterity": 6,
-      "intelligence": 6,
-      "attackModifier": 10.08,
-      "speedModifier": 3
-    }
+      "currentHP": 0
+    },
+    "battleLog": [
+      "Battle between Hero_Knight (Warrior) - 20 HP and Spell_Master (Mage) - 12 HP begins!",
+      "Hero_Knight 3 speed was faster than Spell_Master 1 speed and will begin this round.",
+      "Hero_Knight attacks Spell_Master for 5, Spell_Master has 7 HP remaining.",
+      "Spell_Master attacks Hero_Knight for 8, Hero_Knight has 12 HP remaining.",
+      "Spell_Master 2 speed was faster than Hero_Knight 1 speed and will begin this round.",
+      "Spell_Master attacks Hero_Knight for 7, Hero_Knight has 5 HP remaining.",
+      "Hero_Knight attacks Spell_Master for 7, Spell_Master has 0 HP remaining.",
+      "Hero_Knight wins the battle! Hero_Knight still has 5 HP remaining!"
+    ]
   }
 }
 ``` 
